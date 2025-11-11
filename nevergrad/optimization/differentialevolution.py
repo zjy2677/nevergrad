@@ -302,7 +302,39 @@ class _DE(base.Optimizer):
             # we should not update the lineage (and lineage of children must therefore be enforced manually)
             self._uid_queue.tell(candidate.uid)
 
-# New class AdaptiveDE is IMPLEMENTED HERE!
+# New class AdaptiveDE and DivDE is IMPLEMENTED HERE!
+class _DivDE(_DE):
+    """Differential Evolution variant that adapts F based on population diversity."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.F = 0.8
+        self.F_min, self.F_max = 0.4, 1.0
+
+    def _compute_diversity(self):
+        if not self.population:
+            return 0.0
+        pop_data = np.array(
+            [p.get_standardized_data(reference=self.parametrization) for p in self.population.values()]
+        )
+        # compute mean std per dimension
+        diversity = np.mean(np.std(pop_data, axis=0))
+        return diversity
+
+    def _internal_ask_candidate(self):
+        # measure diversity before creating next candidate
+        diversity = self._compute_diversity()
+
+        # normalize diversity relative to scale
+        norm_div = diversity / (1 + diversity)
+        self.F = self.F_min + norm_div * (self.F_max - self.F_min)
+
+        # apply adaptive F
+        self._config.F1 = self.F
+        self._config.F2 = self.F
+
+        return super()._internal_ask_candidate()
+
 class _AdaptiveDE(_DE):
     """Adaptive Differential Evolution that adjusts F1 and F2 based on recent success rate."""
 
@@ -431,6 +463,36 @@ class DifferentialEvolution(base.ConfiguredOptimizer):
         self.popsize = popsize
         self.multiobjective_adaptation = multiobjective_adaptation
 
+class DivDifferentialEvolution(DifferentialEvolution):
+    """Configured version of diversity-based DE."""
+
+    def __init__(
+        self,
+        *,
+        initialization: str = "parametrization",
+        scale: tp.Union[str, float] = 1.0,
+        recommendation: str = "optimistic",
+        crossover: tp.Union[str, float] = 0.5,
+        F1: float = 0.8,
+        F2: float = 0.8,
+        popsize: tp.Union[str, int] = "standard",
+        propagate_heritage: bool = False,
+        multiobjective_adaptation: bool = True,
+        high_speed: bool = False,
+    ) -> None:
+        super().__init__(
+            initialization=initialization,
+            scale=scale,
+            recommendation=recommendation,
+            crossover=crossover,
+            F1=F1,
+            F2=F2,
+            popsize=popsize,
+            propagate_heritage=propagate_heritage,
+            multiobjective_adaptation=multiobjective_adaptation,
+            high_speed=high_speed,
+        )
+        self._optimizer_class = _DivDE
 
 class AdaptiveDifferentialEvolution(DifferentialEvolution):
     """Configured version of Adaptive Differential Evolution."""
@@ -467,7 +529,10 @@ class AdaptiveDifferentialEvolution(DifferentialEvolution):
 
 
 DE = DifferentialEvolution().set_name("DE", register=True)
+
 AdaptiveDE = AdaptiveDifferentialEvolution().set_name("AdaptiveDE", register=True)
+DivDE = DivDifferentialEvolution().set_name("DivDE", register=True)
+
 LPSDE = DifferentialEvolution(popsize="large").set_name("LPSDE", register=True)
 TwoPointsDE = DifferentialEvolution(crossover="twopoints").set_name("TwoPointsDE", register=True)
 VoronoiDE = DifferentialEvolution(crossover="voronoi").set_name("VoronoiDE", register=True)
