@@ -302,6 +302,46 @@ class _DE(base.Optimizer):
             # we should not update the lineage (and lineage of children must therefore be enforced manually)
             self._uid_queue.tell(candidate.uid)
 
+# New class AdaptiveDE is IMPLEMENTED HERE!
+class _AdaptiveDE(_DE):
+    """Adaptive Differential Evolution that adjusts F1 and F2 based on recent success rate."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.success_log = []
+        self._adaptive_F = 0.8  # start value
+        self._pop_eval_counter = 0  # track number of evaluated candidates
+
+    def _internal_tell_candidate(self, candidate, loss):
+        """Track success and adapt F parameters periodically."""
+        # Record old best value
+        old_best = self._best_value
+        super()._internal_tell_candidate(candidate, loss)
+
+        # Record success
+        if loss < old_best:
+            self.success_log.append(1)
+        else:
+            self.success_log.append(0)
+
+        self._pop_eval_counter += 1
+
+        # Adapt F every 10 generations (≈ 10 × population size evaluations)
+        if self._pop_eval_counter >= 10 * self.llambda:
+            success_rate = sum(self.success_log[-10 * self.llambda:]) / (10 * self.llambda)
+            if success_rate > 0.25:
+                self._adaptive_F = min(1.0, self._adaptive_F * 1.05)
+            elif success_rate < 0.10:
+                self._adaptive_F = max(0.3, self._adaptive_F * 0.95)
+            self._pop_eval_counter = 0  # reset counter
+
+    def _internal_ask_candidate(self):
+        """Use adaptive F instead of fixed F1/F2."""
+        # temporarily override F1/F2 for this generation
+        self._config.F1 = self._adaptive_F
+        self._config.F2 = self._adaptive_F
+        return super()._internal_ask_candidate()
+
 
 # pylint: disable=too-many-arguments, too-many-instance-attributes
 class DifferentialEvolution(base.ConfiguredOptimizer):
@@ -392,7 +432,17 @@ class DifferentialEvolution(base.ConfiguredOptimizer):
         self.multiobjective_adaptation = multiobjective_adaptation
 
 
+class AdaptiveDifferentialEvolution(DifferentialEvolution):
+    """Configured version of Adaptive Differential Evolution."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # use the adaptive internal algorithm instead of standard _DE
+        self._optimizer_class = _AdaptiveDE
+
+
 DE = DifferentialEvolution().set_name("DE", register=True)
+AdaptiveDE = AdaptiveDifferentialEvolution().set_name("AdaptiveDE", register=True)
 LPSDE = DifferentialEvolution(popsize="large").set_name("LPSDE", register=True)
 TwoPointsDE = DifferentialEvolution(crossover="twopoints").set_name("TwoPointsDE", register=True)
 VoronoiDE = DifferentialEvolution(crossover="voronoi").set_name("VoronoiDE", register=True)
@@ -417,6 +467,7 @@ AlmostRotationInvariantDE = DifferentialEvolution(crossover=0.9).set_name(
 RotationInvariantDE = DifferentialEvolution(crossover=1.0, popsize="dimension").set_name(
     "RotationInvariantDE", register=True
 )
+
 
 # Excellent for hyperparameter tuning.
 DiscreteDE = DifferentialEvolution(crossover="dimension").set_name("DiscreteDE", register=True)
