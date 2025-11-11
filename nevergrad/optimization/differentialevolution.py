@@ -435,10 +435,35 @@ class DifferentialEvolution(base.ConfiguredOptimizer):
 class AdaptiveDifferentialEvolution(DifferentialEvolution):
     """Configured version of Adaptive Differential Evolution."""
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # use the adaptive internal algorithm instead of standard _DE
+    def __init__(
+        self,
+        *,
+        initialization: str = "parametrization",
+        scale: tp.Union[str, float] = 1.0,
+        recommendation: str = "optimistic",
+        crossover: tp.Union[str, float] = 0.5,
+        F1: float = 0.8,
+        F2: float = 0.8,
+        popsize: tp.Union[str, int] = "standard",
+        propagate_heritage: bool = False,
+        multiobjective_adaptation: bool = True,
+        high_speed: bool = False,
+    ) -> None:
+        # same signature as DifferentialEvolution
+        super().__init__(
+            initialization=initialization,
+            scale=scale,
+            recommendation=recommendation,
+            crossover=crossover,
+            F1=F1,
+            F2=F2,
+            popsize=popsize,
+            propagate_heritage=propagate_heritage,
+            multiobjective_adaptation=multiobjective_adaptation,
+            high_speed=high_speed,
+        )
         self._optimizer_class = _AdaptiveDE
+
 
 
 DE = DifferentialEvolution().set_name("DE", register=True)
