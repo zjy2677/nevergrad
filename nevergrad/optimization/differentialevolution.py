@@ -548,7 +548,7 @@ class DivDifferentialEvolution(base.ConfiguredOptimizer):
         multiobjective_adaptation: bool = True,
         high_speed: bool = False,
     ) -> None:
-       super().__init__(_DivDE, locals(), as_config=True)
+        super().__init__(_DivDE, locals(), as_config=True)
         self._optimizer_class = _DivDE
 
 class AdaptiveDifferentialEvolution(base.ConfiguredOptimizer):
@@ -569,7 +569,7 @@ class AdaptiveDifferentialEvolution(base.ConfiguredOptimizer):
         high_speed: bool = False,
     ) -> None:
         # same signature as DifferentialEvolution
-       super().__init__(_AdaptiveDE, locals(), as_config=True)
+        super().__init__(_AdaptiveDE, locals(), as_config=True)
         self._optimizer_class = _AdaptiveDE
 
 
