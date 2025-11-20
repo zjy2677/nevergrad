@@ -326,7 +326,7 @@ class _DivDE(_DE):
         diversity = self._compute_diversity()
 
         # Insert a 1/0 to debug
-        1/0
+        
         
         # normalize diversity relative to scale
         norm_div = diversity / (1 + diversity)
