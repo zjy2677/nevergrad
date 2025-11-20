@@ -532,45 +532,57 @@ class AdaptiveDifferentialEvolution(DifferentialEvolution):
 
 '''
 class DivDifferentialEvolution(base.ConfiguredOptimizer):
-    """Configured version of diversity-based DE."""
+    def __init__(self, *,
+                 initialization="parametrization",
+                 scale=1.0,
+                 recommendation="optimistic",
+                 crossover=0.5,
+                 F1=0.8,
+                 F2=0.8,
+                 popsize="standard",
+                 propagate_heritage=False,
+                 multiobjective_adaptation=True,
+                 high_speed=False):
+        config = dict(
+            initialization=initialization,
+            scale=scale,
+            recommendation=recommendation,
+            crossover=crossover,
+            F1=F1,
+            F2=F2,
+            popsize=popsize,
+            propagate_heritage=propagate_heritage,
+            multiobjective_adaptation=multiobjective_adaptation,
+            high_speed=high_speed,
+        )
+        super().__init__(_DivDE, config, as_config=True)
 
-    def __init__(
-        self,
-        *,
-        initialization: str = "parametrization",
-        scale: tp.Union[str, float] = 1.0,
-        recommendation: str = "optimistic",
-        crossover: tp.Union[str, float] = 0.5,
-        F1: float = 0.8,
-        F2: float = 0.8,
-        popsize: tp.Union[str, int] = "standard",
-        propagate_heritage: bool = False,
-        multiobjective_adaptation: bool = True,
-        high_speed: bool = False,
-    ) -> None:
-        super().__init__(_DivDE, locals(), as_config=True)
-        self._optimizer_class = _DivDE
 
 class AdaptiveDifferentialEvolution(base.ConfiguredOptimizer):
-    """Configured version of Adaptive Differential Evolution."""
-
-    def __init__(
-        self,
-        *,
-        initialization: str = "parametrization",
-        scale: tp.Union[str, float] = 1.0,
-        recommendation: str = "optimistic",
-        crossover: tp.Union[str, float] = 0.5,
-        F1: float = 0.8,
-        F2: float = 0.8,
-        popsize: tp.Union[str, int] = "standard",
-        propagate_heritage: bool = False,
-        multiobjective_adaptation: bool = True,
-        high_speed: bool = False,
-    ) -> None:
-        # same signature as DifferentialEvolution
-        super().__init__(_AdaptiveDE, locals(), as_config=True)
-        self._optimizer_class = _AdaptiveDE
+    def __init__(self, *,
+                 initialization="parametrization",
+                 scale=1.0,
+                 recommendation="optimistic",
+                 crossover=0.5,
+                 F1=0.8,
+                 F2=0.8,
+                 popsize="standard",
+                 propagate_heritage=False,
+                 multiobjective_adaptation=True,
+                 high_speed=False):
+        config = dict(
+            initialization=initialization,
+            scale=scale,
+            recommendation=recommendation,
+            crossover=crossover,
+            F1=F1,
+            F2=F2,
+            popsize=popsize,
+            propagate_heritage=propagate_heritage,
+            multiobjective_adaptation=multiobjective_adaptation,
+            high_speed=high_speed,
+        )
+        super().__init__(_AdaptiveDE, config, as_config=True)
 
 
 
