@@ -465,7 +465,7 @@ class DifferentialEvolution(base.ConfiguredOptimizer):
         self.crossover = crossover
         self.popsize = popsize
         self.multiobjective_adaptation = multiobjective_adaptation
-
+'''
 class DivDifferentialEvolution(DifferentialEvolution):
     """Configured version of diversity-based DE."""
 
@@ -529,13 +529,111 @@ class AdaptiveDifferentialEvolution(DifferentialEvolution):
         )
         self._optimizer_class = _AdaptiveDE
 
+'''
+# Newly added block
+class DivDifferentialEvolution(base.ConfiguredOptimizer):
+    """Configured version of diversity-based DE (using _DivDE internally)."""
+
+    def __init__(
+        self,
+        *,
+        initialization: str = "parametrization",
+        scale: tp.Union[str, float] = 1.0,
+        recommendation: str = "optimistic",
+        crossover: tp.Union[str, float] = 0.5,
+        F1: float = 0.8,
+        F2: float = 0.8,
+        popsize: tp.Union[str, int] = "standard",
+        propagate_heritage: bool = False,
+        multiobjective_adaptation: bool = True,
+        high_speed: bool = False,
+    ) -> None:
+        # pass _DivDE as the algorithm class
+        super().__init__(_DivDE, locals(), as_config=True)
+
+        # same sanity checks as in DifferentialEvolution
+        assert recommendation in ["optimistic", "pessimistic", "noisy", "mean"]
+        assert initialization in ["gaussian", "LHS", "QO", "SO", "QR", "parametrization"]
+        assert isinstance(scale, float) or scale == "mini"
+        if not isinstance(popsize, int):
+            assert popsize in ["large", "dimension", "standard", "small"]
+        assert isinstance(crossover, float) or crossover in [
+            "onepoint",
+            "twopoints",
+            "rotated_twopoints",
+            "dimension",
+            "random",
+            "parametrization",
+            "voronoi",
+        ]
+
+        # store config fields (for reproducibility/debugging)
+        self.initialization = initialization
+        self.scale = scale
+        self.high_speed = high_speed
+        self.recommendation = recommendation
+        self.propagate_heritage = propagate_heritage
+        self.F1 = F1
+        self.F2 = F2
+        self.crossover = crossover
+        self.popsize = popsize
+        self.multiobjective_adaptation = multiobjective_adaptation
+
+
+class AdaptiveDifferentialEvolution(base.ConfiguredOptimizer):
+    """Configured version of Adaptive Differential Evolution (using _AdaptiveDE internally)."""
+
+    def __init__(
+        self,
+        *,
+        initialization: str = "parametrization",
+        scale: tp.Union[str, float] = 1.0,
+        recommendation: str = "optimistic",
+        crossover: tp.Union[str, float] = 0.5,
+        F1: float = 0.8,
+        F2: float = 0.8,
+        popsize: tp.Union[str, int] = "standard",
+        propagate_heritage: bool = False,
+        multiobjective_adaptation: bool = True,
+        high_speed: bool = False,
+    ) -> None:
+        # pass _AdaptiveDE as the algorithm class
+        super().__init__(_AdaptiveDE, locals(), as_config=True)
+
+        # same sanity checks as in DifferentialEvolution
+        assert recommendation in ["optimistic", "pessimistic", "noisy", "mean"]
+        assert initialization in ["gaussian", "LHS", "QO", "SO", "QR", "parametrization"]
+        assert isinstance(scale, float) or scale == "mini"
+        if not isinstance(popsize, int):
+            assert popsize in ["large", "dimension", "standard", "small"]
+        assert isinstance(crossover, float) or crossover in [
+            "onepoint",
+            "twopoints",
+            "rotated_twopoints",
+            "dimension",
+            "random",
+            "parametrization",
+            "voronoi",
+        ]
+
+        # store config fields
+        self.initialization = initialization
+        self.scale = scale
+        self.high_speed = high_speed
+        self.recommendation = recommendation
+        self.propagate_heritage = propagate_heritage
+        self.F1 = F1
+        self.F2 = F2
+        self.crossover = crossover
+        self.popsize = popsize
+        self.multiobjective_adaptation = multiobjective_adaptation
 
 
 
 DE = DifferentialEvolution().set_name("DE", register=True)
 
-AdaptiveDifferentialEvolution.set_name("AdaptiveDE", register=True)
-DivDifferentialEvolution.set_name("DivDE", register=True)
+AdaptiveDE = AdaptiveDifferentialEvolution().set_name("AdaptiveDE", register=True)
+DivDE = DivDifferentialEvolution().set_name("DivDE", register=True)
 
 
 LPSDE = DifferentialEvolution(popsize="large").set_name("LPSDE", register=True)
