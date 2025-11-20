@@ -351,7 +351,7 @@ class _AdaptiveDE(_DE):
         """Track success and adapt F parameters periodically."""
         # Record old best value
         super()._internal_tell_candidate(candidate, loss)
-        old_best = self._best_value.loss
+        old_best = self.current_bests["optimistic"].loss
         
 
         # Record success
