@@ -528,10 +528,12 @@ class AdaptiveDifferentialEvolution(DifferentialEvolution):
 
 
 
+
 DE = DifferentialEvolution().set_name("DE", register=True)
 
-AdaptiveDE = AdaptiveDifferentialEvolution().set_name("AdaptiveDE", register=True)
-DivDE = DivDifferentialEvolution().set_name("DivDE", register=True)
+AdaptiveDifferentialEvolution.set_name("AdaptiveDE", register=True)
+DivDifferentialEvolution.set_name("DivDE", register=True)
+
 
 LPSDE = DifferentialEvolution(popsize="large").set_name("LPSDE", register=True)
 TwoPointsDE = DifferentialEvolution(crossover="twopoints").set_name("TwoPointsDE", register=True)
