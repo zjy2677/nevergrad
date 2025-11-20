@@ -351,7 +351,7 @@ class _AdaptiveDE(_DE):
         """Track success and adapt F parameters periodically."""
         # Record old best value
         super()._internal_tell_candidate(candidate, loss)
-        old_best = self.current_bests["optimistic"].loss
+        old_best = self._best_value
         
 
         # Record success
@@ -533,7 +533,7 @@ class AdaptiveDifferentialEvolution(DifferentialEvolution):
 '''
 
 # Newly added block
-class DivDifferentialEvolution(base.ConfiguredOptimizer):
+class DivDifferentialEvolution(DifferentialEvolution):
     """Configured version of diversity-based DE (using _DivDE internally)."""
 
     def __init__(
@@ -582,7 +582,7 @@ class DivDifferentialEvolution(base.ConfiguredOptimizer):
         self.multiobjective_adaptation = multiobjective_adaptation
 
 
-class AdaptiveDifferentialEvolution(base.ConfiguredOptimizer):
+class AdaptiveDifferentialEvolution(DifferentialEvolution):
     """Configured version of Adaptive Differential Evolution (using _AdaptiveDE internally)."""
 
     def __init__(
