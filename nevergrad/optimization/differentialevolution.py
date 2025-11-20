@@ -301,7 +301,7 @@ class _DE(base.Optimizer):
             # this candidate lineage is not candidate.uid, but to avoid interfering with other optimizers (eg: PSO)
             # we should not update the lineage (and lineage of children must therefore be enforced manually)
             self._uid_queue.tell(candidate.uid)
-
+'''
 # New class AdaptiveDE and DivDE is IMPLEMENTED HERE!
 class _DivDE(_DE):
     """Differential Evolution variant that adapts F based on population diversity."""
@@ -377,6 +377,89 @@ class _AdaptiveDE(_DE):
         self._config.F1 = self._adaptive_F
         self._config.F2 = self._adaptive_F
         return super()._internal_ask_candidate()
+'''
+
+# New class DivDE and AdaptiveDE are IMPLEMENTED HERE!
+class _DivDE(_DE):
+    """Differential Evolution variant that adapts F based on population diversity."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.F = 0.8
+        self.F_min, self.F_max = 0.4, 1.0
+
+    def _compute_diversity(self) -> float:
+        if not self.population:
+            return 0.0
+        pop_data = np.array(
+            [p.get_standardized_data(reference=self.parametrization) for p in self.population.values()]
+        )
+        # mean std per dimension
+        diversity = np.mean(np.std(pop_data, axis=0))
+        return float(diversity)
+
+    def _internal_ask_candidate(self) -> p.Parameter:
+        # measure diversity before creating next candidate
+        diversity = self._compute_diversity()
+
+        # DEBUG hook (optional) – remove or comment when done
+        # 1 / 0
+
+        # normalize diversity to [0, 1)
+        norm_div = diversity / (1.0 + diversity)
+        self.F = self.F_min + norm_div * (self.F_max - self.F_min)
+
+        # apply adaptive F
+        self._config.F1 = self.F
+        self._config.F2 = self.F
+
+        return super()._internal_ask_candidate()
+
+
+class _AdaptiveDE(_DE):
+    """Adaptive Differential Evolution that adjusts F1 and F2 based on recent success rate."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.success_log: tp.List[int] = []
+        self._adaptive_F = 0.8  # start value
+        self._pop_eval_counter = 0  # track number of evaluated candidates
+
+    def _internal_tell_candidate(self, candidate: p.Parameter, loss: tp.FloatLoss) -> None:
+        """Track success and adapt F parameters periodically."""
+        uid = candidate.heritage["lineage"]
+        parent = self.population.get(uid, None)
+
+        # success = candidate better than its parent (single-objective case)
+        success = False
+        if parent is not None:
+            success = loss < base._loss(parent)
+
+        # do the standard DE update
+        super()._internal_tell_candidate(candidate, loss)
+
+        # record success / failure
+        self.success_log.append(1 if success else 0)
+        self._pop_eval_counter += 1
+
+        # Adapt F every ~10 generations (≈ 10 × population size evaluations)
+        if self._pop_eval_counter >= 10 * self.llambda:
+            window = self.success_log[-10 * self.llambda:]
+            if window:
+                success_rate = sum(window) / float(len(window))
+                if success_rate > 0.25:
+                    self._adaptive_F = min(1.0, self._adaptive_F * 1.05)
+                elif success_rate < 0.10:
+                    self._adaptive_F = max(0.3, self._adaptive_F * 0.95)
+            self._pop_eval_counter = 0  # reset counter
+
+    def _internal_ask_candidate(self) -> p.Parameter:
+        """Use adaptive F instead of fixed F1/F2."""
+        # temporarily override F1/F2 for this generation
+        self._config.F1 = self._adaptive_F
+        self._config.F2 = self._adaptive_F
+        return super()._internal_ask_candidate()
+
 
 
 # pylint: disable=too-many-arguments, too-many-instance-attributes
@@ -532,59 +615,92 @@ class AdaptiveDifferentialEvolution(DifferentialEvolution):
 
 '''
 class DivDifferentialEvolution(base.ConfiguredOptimizer):
-    def __init__(self, *,
-                 initialization="parametrization",
-                 scale=1.0,
-                 recommendation="optimistic",
-                 crossover=0.5,
-                 F1=0.8,
-                 F2=0.8,
-                 popsize="standard",
-                 propagate_heritage=False,
-                 multiobjective_adaptation=True,
-                 high_speed=False):
-        config = dict(
-            initialization=initialization,
-            scale=scale,
-            recommendation=recommendation,
-            crossover=crossover,
-            F1=F1,
-            F2=F2,
-            popsize=popsize,
-            propagate_heritage=propagate_heritage,
-            multiobjective_adaptation=multiobjective_adaptation,
-            high_speed=high_speed,
-        )
-        super().__init__(_DivDE, config, as_config=True)
+    """Configured version of diversity-based DE (using _DivDE internally)."""
+
+    def __init__(
+        self,
+        *,
+        initialization: str = "parametrization",
+        scale: tp.Union[str, float] = 1.0,
+        recommendation: str = "optimistic",
+        crossover: tp.Union[str, float] = 0.5,
+        F1: float = 0.8,
+        F2: float = 0.8,
+        popsize: tp.Union[str, int] = "standard",
+        propagate_heritage: bool = False,
+        multiobjective_adaptation: bool = True,
+        high_speed: bool = False,
+    ) -> None:
+        # exact same pattern as DifferentialEvolution, but with OptimizerClass = _DivDE
+        super().__init__(_DivDE, locals(), as_config=True)
+        assert recommendation in ["optimistic", "pessimistic", "noisy", "mean"]
+        assert initialization in ["gaussian", "LHS", "QO", "SO", "QR", "parametrization"]
+        assert isinstance(scale, float) or scale == "mini"
+        if not isinstance(popsize, int):
+            assert popsize in ["large", "dimension", "standard", "small"]
+        assert isinstance(crossover, float) or crossover in [
+            "onepoint",
+            "twopoints",
+            "rotated_twopoints",
+            "dimension",
+            "random",
+            "parametrization",
+            "voronoi",
+        ]
+        self.initialization = initialization
+        self.scale = scale
+        self.high_speed = high_speed
+        self.recommendation = recommendation
+        self.propagate_heritage = propagate_heritage
+        self.F1 = F1
+        self.F2 = F2
+        self.crossover = crossover
+        self.popsize = popsize
+        self.multiobjective_adaptation = multiobjective_adaptation
 
 
 class AdaptiveDifferentialEvolution(base.ConfiguredOptimizer):
-    def __init__(self, *,
-                 initialization="parametrization",
-                 scale=1.0,
-                 recommendation="optimistic",
-                 crossover=0.5,
-                 F1=0.8,
-                 F2=0.8,
-                 popsize="standard",
-                 propagate_heritage=False,
-                 multiobjective_adaptation=True,
-                 high_speed=False):
-        config = dict(
-            initialization=initialization,
-            scale=scale,
-            recommendation=recommendation,
-            crossover=crossover,
-            F1=F1,
-            F2=F2,
-            popsize=popsize,
-            propagate_heritage=propagate_heritage,
-            multiobjective_adaptation=multiobjective_adaptation,
-            high_speed=high_speed,
-        )
-        super().__init__(_AdaptiveDE, config, as_config=True)
+    """Configured version of Adaptive Differential Evolution (using _AdaptiveDE internally)."""
 
-
+    def __init__(
+        self,
+        *,
+        initialization: str = "parametrization",
+        scale: tp.Union[str, float] = 1.0,
+        recommendation: str = "optimistic",
+        crossover: tp.Union[str, float] = 0.5,
+        F1: float = 0.8,
+        F2: float = 0.8,
+        popsize: tp.Union[str, int] = "standard",
+        propagate_heritage: bool = False,
+        multiobjective_adaptation: bool = True,
+        high_speed: bool = False,
+    ) -> None:
+        super().__init__(_AdaptiveDE, locals(), as_config=True)
+        assert recommendation in ["optimistic", "pessimistic", "noisy", "mean"]
+        assert initialization in ["gaussian", "LHS", "QO", "SO", "QR", "parametrization"]
+        assert isinstance(scale, float) or scale == "mini"
+        if not isinstance(popsize, int):
+            assert popsize in ["large", "dimension", "standard", "small"]
+        assert isinstance(crossover, float) or crossover in [
+            "onepoint",
+            "twopoints",
+            "rotated_twopoints",
+            "dimension",
+            "random",
+            "parametrization",
+            "voronoi",
+        ]
+        self.initialization = initialization
+        self.scale = scale
+        self.high_speed = high_speed
+        self.recommendation = recommendation
+        self.propagate_heritage = propagate_heritage
+        self.F1 = F1
+        self.F2 = F2
+        self.crossover = crossover
+        self.popsize = popsize
+        self.multiobjective_adaptation = multiobjective_adaptation
 
 
 
