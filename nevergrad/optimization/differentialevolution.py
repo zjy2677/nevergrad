@@ -325,6 +325,9 @@ class _DivDE(_DE):
         # measure diversity before creating next candidate
         diversity = self._compute_diversity()
 
+        # Insert a 1/0 to debug
+        1/0
+        
         # normalize diversity relative to scale
         norm_div = diversity / (1 + diversity)
         self.F = self.F_min + norm_div * (self.F_max - self.F_min)
